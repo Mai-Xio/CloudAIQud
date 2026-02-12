@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ESP32 AI Robot Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 10px; }
+
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 15px auto;
+      border-radius: 15px;
+      max-width: 320px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #1e88e5;
+    }
+
+    input[type=range] {
+      width: 100%;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #1e88e5;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button.off {
+      background: #d32f2f;
+    }
+
+    #dashboard { display: none; }
+
+    #loginForm {
+      max-width: 350px;
+      margin: 80px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 15px;
+    }
+
+    footer {
+      margin-top: 40px;
+      color: #666;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>ESP32 AI Robot Dashboard</h1>
+
+<!-- LOGIN -->
+<div id="loginForm">
+  <input type="email" id="email" placeholder="Email"><br><br>
+  <input type="password" id="password" placeholder="Password"><br><br>
+  <button id="loginBtn">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+
+  <!-- SENSOR DATA -->
+  <div class="card">
+    <h3>🌡 Temperature</h3>
+    <div class="value" id="temp">--</div>
+  </div>
+
+  <div class="card">
+    <h3>💧 Humidity</h3>
+    <div class="value" id="hum">--</div>
+  </div>
+
+  <div class="card">
+    <h3>🌱 Soil Moisture</h3>
+    <div class="value" id="soil">--</div>
+  </div>
+
+  <div class="card">
+    <h3>📏 Distance</h3>
+    <div class="value" id="distance">--</div>
+  </div>
+
+  <div class="card">
+    <h3>👁 IR Sensor</h3>
+    <div class="value" id="ir">--</div>
+  </div>
+
+  <!-- SERVO CONTROL -->
+  <div class="card">
+    <h3>🤖 Head Servo</h3>
+    <input type="range" min="0" max="180" id="headSlider">
+  </div>
+
+  <div class="card">
+    <h3>🐾 Tail Servo</h3>
+    <input type="range" min="0" max="180" id="tailSlider">
+  </div>
+
+  <!-- MODE -->
+  <div class="card">
+    <h3>⚙ Mode</h3>
+    <button id="autoBtn">Autonomous</button>
+    <button class="off" id="manualBtn">Manual</button>
+  </div>
+
+  <button id="logoutBtn" class="off">Logout</button>
+
+</div>
+
+<footer>AI Robot Control Panel</footer>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+  apiKey: "AIzaSyBFauNHOCKWyIkyvj6oQlJ8ESaB1Jiev2Q",
+  authDomain: "cloud-based-ai-9d201.firebaseapp.com",
+  databaseURL: "https://cloud-based-ai-9d201-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "cloud-based-ai-9d201",
+  storageBucket: "cloud-based-ai-9d201.firebasestorage.app",
+  messagingSenderId: "30799888608",
+  appId: "1:30799888608:web:b680693ebe27cee3409085",
+  measurementId: "G-2SC43V8E1G"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  const allowedEmail = "abc@gmail.co";
+  const allowedPassword = "123456";
+
+  const loginBtn = document.getElementById("loginBtn");
+
+  loginBtn.onclick = () => {
+    const email = email.value;
+    const password = password.value;
+
+    if(email === allowedEmail && password === allowedPassword){
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+          loginForm.style.display = "none";
+          dashboard.style.display = "block";
+          startDashboard();
+        });
+    } else {
+      alert("Invalid login");
+    }
+  };
+
+  function startDashboard(){
+    const db = firebase.database();
+    const dataRef = db.ref("robot1/data");
+    const cmdRef = db.ref("robot1/commands");
+
+    dataRef.on("value", snap => {
+      const d = snap.val();
+      if(!d) return;
+
+      temp.innerText = d.temperature + " °C";
+      hum.innerText = d.humidity + " %";
+      soil.innerText = d.soil + " %";
+      distance.innerText = d.distance + " cm";
+      ir.innerText = d.ir ? "Object" : "Clear";
+    });
+
+    headSlider.oninput = e => cmdRef.child("head").set(e.target.value);
+    tailSlider.oninput = e => cmdRef.child("tail").set(e.target.value);
+
+    autoBtn.onclick = () => cmdRef.child("mode").set("auto");
+    manualBtn.onclick = () => cmdRef.child("mode").set("manual");
+  }
+
+  logoutBtn.onclick = () => {
+    firebase.auth().signOut().then(() => location.reload());
+  };
+</script>
+
+</body>
+</html>
