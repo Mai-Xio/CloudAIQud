@@ -1,187 +1,149 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>ESP32 AI Robot Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IoT Dashboard</title>
+    <meta name="description" content="Firebase Hosting frontend integrated with a Python IoT backend API." />
+    <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="titleRow">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>IoT Dashboard</h1>
+            <p class="muted">Frontend on Firebase Hosting • Backend via configurable API base URL</p>
+          </div>
+        </div>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { margin-bottom: 10px; }
+        <div class="badgeRow">
+          <div id="apiBadge" class="badge">Loading configuration…</div>
+          <button id="btnOpenSettings" class="secondary" type="button">API Settings</button>
+        </div>
+      </header>
 
-    .card {
-      background: white;
-      padding: 20px;
-      margin: 15px auto;
-      border-radius: 15px;
-      max-width: 320px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
+      <section class="card">
+        <div class="cardHeader">
+          <h2>Send Sensor Data</h2>
+          <span class="muted small">POST /api/v1/readings</span>
+        </div>
 
-    .value {
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #1e88e5;
-    }
+        <form id="sendForm" class="grid">
+          <label>
+            Device ID
+            <input id="deviceId" value="esp32-01" maxlength="64" required />
+          </label>
 
-    input[type=range] {
-      width: 100%;
-    }
+          <label>
+            Temperature (°C)
+            <input id="temp" type="number" step="0.01" value="25.00" required />
+          </label>
 
-    button {
-      width: 100%;
-      padding: 12px;
-      margin-top: 10px;
-      border: none;
-      border-radius: 10px;
-      background: #1e88e5;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
+          <label>
+            Humidity (%)
+            <input id="hum" type="number" step="0.01" value="55.00" required />
+          </label>
 
-    button.off {
-      background: #d32f2f;
-    }
+          <label>
+            Soil Moisture (%)
+            <input id="soil" type="number" step="0.01" value="60.00" required />
+          </label>
 
-    #dashboard { display: none; }
+          <button type="submit">Send</button>
+        </form>
 
-    #loginForm {
-      max-width: 350px;
-      margin: 80px auto;
-      background: white;
-      padding: 25px;
-      border-radius: 15px;
-    }
+        <div id="postStatus" class="status" role="status" aria-live="polite"></div>
+      </section>
 
-    footer {
-      margin-top: 40px;
-      color: #666;
-    }
-  </style>
-</head>
+      <section class="card">
+        <div class="cardHeader">
+          <h2>Readings</h2>
+          <span class="muted small">GET /api/v1/readings and /api/v1/readings/latest</span>
+        </div>
 
-<body>
+        <div class="row">
+          <button id="btnLatest" type="button">Fetch Latest</button>
+          <button id="btnHistory" type="button">Fetch History</button>
 
-<h1>ESP32 AI Robot Dashboard</h1>
+          <label class="inline">
+            Limit
+            <input id="limit" type="number" min="1" max="2000" value="50" />
+          </label>
+        </div>
 
-<!-- LOGIN -->
-<div id="loginForm">
-  <input type="email" id="email" placeholder="Email"><br><br>
-  <input type="password" id="password" placeholder="Password"><br><br>
-  <button id="loginBtn">Login</button>
-</div>
+        <div id="fetchStatus" class="status" role="status" aria-live="polite"></div>
 
-<!-- DASHBOARD -->
-<div id="dashboard">
+        <div class="grid2">
+          <div class="panel">
+            <h3>Latest</h3>
+            <pre id="latestBox" class="pre">(no data yet)</pre>
+          </div>
 
-  <div class="card"><h3>🌡 Temperature</h3><div class="value" id="temp">--</div></div>
-  <div class="card"><h3>💧 Humidity</h3><div class="value" id="hum">--</div></div>
-  <div class="card"><h3>🌱 Soil Moisture</h3><div class="value" id="soil">--</div></div>
-  <div class="card"><h3>📏 Distance</h3><div class="value" id="distance">--</div></div>
-  <div class="card"><h3>👁 IR Sensor</h3><div class="value" id="ir">--</div></div>
+          <div class="panel">
+            <h3>History</h3>
+            <div class="tableWrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Device</th>
+                    <th>Temp</th>
+                    <th>Hum</th>
+                    <th>Soil</th>
+                  </tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
 
-  <div class="card">
-    <h3>🤖 Head Servo</h3>
-    <input type="range" min="0" max="180" id="headSlider">
-  </div>
+      <footer class="footer muted">
+        <small>
+          Tip: Set your backend URL once in “API Settings” and it will be remembered in this browser.
+        </small>
+      </footer>
+    </main>
 
-  <div class="card">
-    <h3>🐾 Tail Servo</h3>
-    <input type="range" min="0" max="180" id="tailSlider">
-  </div>
+    <!-- Settings Modal -->
+    <dialog id="settingsDialog" class="dialog">
+      <form method="dialog" class="dialogInner">
+        <div class="dialogHeader">
+          <h2>API Settings</h2>
+          <button id="btnCloseSettings" class="iconBtn" value="cancel" aria-label="Close">✕</button>
+        </div>
 
-  <div class="card">
-    <h3>⚙ Mode</h3>
-    <button id="autoBtn">Autonomous</button>
-    <button class="off" id="manualBtn">Manual</button>
-  </div>
+        <p class="muted">
+          This app reads the backend base URL from <code>public/config.js</code> and then allows per-browser overrides.
+          The override is saved in <code>localStorage</code>.
+        </p>
 
-  <button id="logoutBtn" class="off">Logout</button>
-</div>
+        <label class="stack">
+          Backend API Base URL
+          <input id="backendUrlInput" inputmode="url" placeholder="" />
+          <span class="muted small">Paste the backend base URL that serves /health</span>
+        </label>
 
-<footer>AI Robot Control Panel</footer>
+        <label class="stack">
+          Ingest API Key (optional)
+          <input id="apiKeyInput" placeholder="(leave blank if not used)" />
+          <span class="muted small">If your backend expects an <code>X-API-Key</code> header for POST requests.</span>
+        </label>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+        <div class="dialogFooter">
+          <button id="btnResetSettings" class="secondary" type="button">Reset to Defaults</button>
+          <button id="btnSaveSettings" type="button">Save</button>
+        </div>
 
-<script>
-  // 🔥 Firebase Config
-  const firebaseConfig = {
-    apiKey: "AIzaSyBFauNHOCKWyIkyvj6oQlJ8ESaB1Jiev2Q",
-    authDomain: "cloud-based-ai-9d201.firebaseapp.com",
-    databaseURL: "https://cloud-based-ai-9d201-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "cloud-based-ai-9d201",
-    storageBucket: "cloud-based-ai-9d201.firebasestorage.app",
-    messagingSenderId: "30799888608",
-    appId: "1:30799888608:web:b680693ebe27cee3409085"
-  };
+        <div id="settingsStatus" class="status" role="status" aria-live="polite"></div>
+      </form>
+    </dialog>
 
-  firebase.initializeApp(firebaseConfig);
-
-  // 🔐 Test Login
-  const allowedEmail = "abc@gmail.com";
-  const allowedPassword = "123456";
-
-  const loginForm = document.getElementById("loginForm");
-  const dashboard = document.getElementById("dashboard");
-
-  document.getElementById("loginBtn").onclick = () => {
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-
-    if (email === allowedEmail && password === allowedPassword) {
-      loginForm.style.display = "none";
-      dashboard.style.display = "block";
-      startDashboard();
-    } else {
-      alert("Invalid email or password");
-    }
-  };
-
-  function startDashboard() {
-    const db = firebase.database();
-    const dataRef = db.ref("robot1/data");
-    const cmdRef = db.ref("robot1/commands");
-
-    dataRef.on("value", snapshot => {
-      const d = snapshot.val();
-      if (!d) return;
-
-      document.getElementById("temp").innerText = d.temperature + " °C";
-      document.getElementById("hum").innerText = d.humidity + " %";
-      document.getElementById("soil").innerText = d.soil + " %";
-      document.getElementById("distance").innerText = d.distance + " cm";
-      document.getElementById("ir").innerText = d.ir ? "Object" : "Clear";
-    });
-
-    document.getElementById("headSlider").oninput =
-      e => cmdRef.child("head").set(parseInt(e.target.value));
-
-    document.getElementById("tailSlider").oninput =
-      e => cmdRef.child("tail").set(parseInt(e.target.value));
-
-    document.getElementById("autoBtn").onclick =
-      () => cmdRef.child("mode").set("auto");
-
-    document.getElementById("manualBtn").onclick =
-      () => cmdRef.child("mode").set("manual");
-  }
-
-  document.getElementById("logoutBtn").onclick = () => {
-    dashboard.style.display = "none";
-    loginForm.style.display = "block";
-    document.getElementById("email").value = "";
-    document.getElementById("password").value = "";
-  };
-</script>
-
-</body>
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
 </html>
