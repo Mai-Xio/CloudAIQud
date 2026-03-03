@@ -20,5 +20,5 @@ jobs:
         with:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
-          projectId: "YOUR_FIREBASE_PROJECT_ID"
+          projectId:  "cloud-based-ai-9d201"
           channelId: "live"
